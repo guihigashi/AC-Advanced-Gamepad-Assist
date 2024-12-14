@@ -1,5 +1,6 @@
 local lib = require "../../../extension/lua/joypad-assist/Advanced Gamepad Assist/AGALib"
 local _json = require "json"
+local updater = require "updater"
 
 local uiData = ac.connect{
     ac.StructItem.key("AGAData"),
@@ -99,6 +100,22 @@ local tooltips = {
     _gameDeadzone            = "Controls AC's own 'Steering deadzone' setting.\n\nDeadzone is used to avoid unintended inputs caused by stick-drift.\n\nShould be as low as you can go without causing unintended inputs when not touching the analog stick.",
     _gameRumble              = "Controls AC's own 'Rumble effects' setting."
 }
+
+-- Checking if a new version is available
+
+local newVersionAvailable = false
+-- local newVersionURL       = ""
+
+updater.getLatestVersion(function (versionString, releaseNotes, downloadURL)
+    local currentVersion = updater.versionStringToNumber(updater.getCurrentVersionString())
+    local latestVersion  = updater.versionStringToNumber(versionString)
+
+    if currentVersion ~= 0 and latestVersion ~= 0 and latestVersion > currentVersion and releaseNotes ~= "" and downloadURL ~= "" then
+        newVersionAvailable      = true
+        tooltips["releaseNotes"] = "Release notes for version " .. versionString .. ":\n\n" .. releaseNotes
+        -- newVersionURL            = downloadURL
+    end
+end)
 
 local sectionPadding = 10
 
@@ -669,9 +686,16 @@ function script.windowMain(dt)
     showConfigSlider("maxSelfSteerAngle", "Max angle", "%.1f°", 0.0,  90.0,   1.0, uiData.useFilter)
     showConfigSlider("dampingStrength",   "Damping",   "%.f%%", 0.0, 100.0, 100.0, uiData.useFilter)
 
-    showDummyLine(0.25)
-    ui.alignTextToFramePadding()
-    ui.textWrapped("Tip: Hold SHIFT to fine-tune sliders, or CTRL-click them to edit the values!")
+    showDummyLine(0.5)
+
+    if newVersionAvailable then
+        if showButton("📲 Update available! Click to download!", "releaseNotes", nil, 0, rgbm(1.0, 0.9, 0.0, 1.0)) then
+            os.execute("start https://www.overtake.gg/downloads/advanced-gamepad-assist.62485/")
+        end
+    else
+        ui.alignTextToFramePadding()
+        ui.textWrapped("Tip: Hold SHIFT to fine-tune sliders, or CTRL-click them to edit the values!")
+    end
 
     -- ui.pushFont(ui.Font.Tiny)
     -- showDummyLine(0.5)
