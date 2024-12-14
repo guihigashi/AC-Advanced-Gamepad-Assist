@@ -365,7 +365,7 @@ function M.SmoothTowards:reset()
 end
 
 -- SmoothTowards2 class
--- would be a better version of SmoothTowards, but im lazy to migrate the whole project to use this
+-- would be a better version of SmoothTowards, but im lazy to migrate the whole project to use this, the rates would all need to be adjusted slightly
 
 -- M.SmoothTowards2 = {}
 
@@ -384,9 +384,11 @@ end
 -- function M.SmoothTowards2:get(val, dt)
 --     local x1             = self.linearity - 0.5
 --     local rateCorrection = x1 * x1 * 0.2 + 0.95
---     local change         = dt * self.range * self.rate * rateCorrection
---     local v0             = self.state + (val - self.state) * (change * 2.0)
---     local v1             = (math.abs(val - self.state) <= change) and val or (self.state + math.sign(val - self.state) * change)
+--     local normalizedRate = self.rate * self.range * rateCorrection
+--     local maxChange      = normalizedRate * dt
+--     local factor         = 1.0 - math.exp(-2.0 * maxChange / math.max(self.range, 1e-13))
+--     local v0             = self.state + (val - self.state) * factor
+--     local v1             = (math.abs(val - self.state) <= maxChange) and val or (self.state + math.sign(val - self.state) * maxChange)
 --     self.state           = v0 + (v1 - v0) * self.linearity
 
 --     return self.state
@@ -413,7 +415,7 @@ end
 --     self.state = self.startingValue
 -- end
 
--- 
+
 
 local _valueHistory = {}
 function M.measureUpdateRate(key, value, dt)

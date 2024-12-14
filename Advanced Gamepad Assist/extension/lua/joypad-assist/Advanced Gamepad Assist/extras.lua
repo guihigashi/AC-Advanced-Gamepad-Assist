@@ -59,6 +59,17 @@ local function sanitize01Input(value)
     return lib.numberGuard(math.clamp(value, 0, 1))
 end
 
+-- local lastXboxUpdate = 0
+-- local function getXboxState(gamepadIndex)
+--     local currentTime = os.clock()
+
+--     if (currentTime - lastXboxUpdate) < 0.05 then return nil end
+
+--     lastXboxUpdate = currentTime
+
+--     return ac.setXbox(gamepadIndex, 1000, 0.06)
+-- end
+
 local function getReferenceWheelIndicies(vData)
     return (vData.vehicle.tractionType == 1) and { 0, 1 } or { 2, 3 }
 end
@@ -247,8 +258,8 @@ M.update = function(vData, uiData, absInitialSteering, dt)
 
     -- ================================ Vibration
 
-    if (uiData.triggerFeedbackL > 0.0 or uiData.triggerFeedbackR > 0.0) and vData.localHVelLen > 0.5 then
-        local xbox = ac.setXbox(vData.inputData.gamepadIndex, 1000, dt * 3.0)
+    if (uiData.triggerFeedbackL > 0.001 or uiData.triggerFeedbackR > 0.001) and vData.localHVelLen > 0.5 then
+        local xbox = ac.setXbox(vData.inputData.gamepadIndex, 1000, dt * 4.0) -- getXboxState(vData.inputData.gamepadIndex)
 
         if xbox ~= nil then
             -- Checking wheel velocity ratios to avoid vibrating both triggers at the same time
@@ -260,15 +271,15 @@ M.update = function(vData, uiData, absInitialSteering, dt)
             local rVibration = 0.0
 
             if actualBrakeNd > 0.5 and M.controllerBrake > 0.2 and (vData.vehicle.absMode < 1 or uiData.triggerFeedbackAlwaysOn) then
-                lVibration = ((math.lerpInvSat(actualBrakeNd, 0.5, 1.0) ^ 4.0) * 0.9 + 0.1) * uiData.triggerFeedbackL
+                lVibration = ((math.lerpInvSat(actualBrakeNd, 0.5, 1.0) ^ 4.0) * 0.95 + 0.05) * uiData.triggerFeedbackL
             end
 
             if actualThrottleNd > 0.5 and M.controllerThrottle > 0.2 and (vData.vehicle.tractionControlMode < 1 or uiData.triggerFeedbackAlwaysOn) then
-                rVibration = ((math.lerpInvSat(actualThrottleNd, 0.5, 1.0) ^ 4.0) * 0.9 + 0.1) * uiData.triggerFeedbackR
+                rVibration = ((math.lerpInvSat(actualThrottleNd, 0.5, 1.0) ^ 4.0) * 0.95 + 0.05) * uiData.triggerFeedbackR
             end
 
-            xbox.triggerLeft  = lVibration
-            xbox.triggerRight = rVibration
+            xbox.triggerLeft  = sanitize01Input(lVibration)
+            xbox.triggerRight = sanitize01Input(rVibration)
         end
     end
 
@@ -466,7 +477,7 @@ M.update = function(vData, uiData, absInitialSteering, dt)
 
         local minBiasMult       = math.lerp(0.8, 0.65, lib.clamp01(lib.inverseLerp(0.025, 0.25, vData.perfData.shiftDownTime)))
         local clampedBias       = math.max(0.1, math.lerp(minBiasMult, 1.0, math.lerpInvSat(vData.vehicle.gear, 2, vData.vehicle.gearCount)) * uiData.autoShiftingDownBias) -- clamping it because of a change to have a minimum value of 10%, but saved settings might still have it lower
-        local downshiftBiasUsed = math.lerp(clampedBias, clampedBias * 0.6, (lib.clamp01(lib.inverseLerp(0.05, 0.5, vData.inputData.gas)) - lib.clamp01(lib.inverseLerp(0.05, 0.5, vData.inputData.brake))) * 0.5 + 0.5)
+        local downshiftBiasUsed = math.lerp(clampedBias, clampedBias * 0.4, (lib.clamp01(lib.inverseLerp(0.05, 0.5, vData.inputData.gas)) - lib.clamp01(lib.inverseLerp(0.05, 0.5, vData.inputData.brake))) * 0.5 + 0.5)
         local absDownshiftLimit = vData.perfData:getAbsoluteRPM(maxAllowedDownshiftRPM)
         local minAllowedRPM     = vData.perfData:getAbsoluteRPM(0.01)
 

@@ -1,5 +1,6 @@
 local lib = require "../../../extension/lua/joypad-assist/Advanced Gamepad Assist/AGALib"
 local _json = require "json"
+local updater = require "updater"
 
 local uiData = ac.connect{
     ac.StructItem.key("AGAData"),
@@ -53,7 +54,7 @@ local presetKeys = {
     "maxDynamicLimitReduction",
 }
 
-local _factoryPresetsStr = '{"Loose":{"dampingStrength":0.3,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.3,"maxSelfSteerAngle":4,"targetSlip":1,"countersteerResponse":0.3,"rateIncreaseWithSpeed":0.1,"maxDynamicLimitReduction":4.5,"steeringRate":0.5},"Default":{"dampingStrength":0.37,"filterSetting":0.5,"useFilter":true,"selfSteerResponse":0.37,"maxSelfSteerAngle":14,"targetSlip":0.95,"countersteerResponse":0.2,"rateIncreaseWithSpeed":0.1,"maxDynamicLimitReduction":5,"steeringRate":0.5},"Stable":{"dampingStrength":0.75,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.65,"maxSelfSteerAngle":90,"targetSlip":0.93,"countersteerResponse":0.15,"rateIncreaseWithSpeed":0.0,"maxDynamicLimitReduction":6,"steeringRate":0.35},"Drift":{"dampingStrength":0.5,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.35,"maxSelfSteerAngle":90,"targetSlip":1,"countersteerResponse":0.5,"rateIncreaseWithSpeed":0.1,"maxDynamicLimitReduction":4,"steeringRate":0.4},"Author\'s preference":{"dampingStrength":0.4,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.35,"maxSelfSteerAngle":90,"targetSlip":0.95,"countersteerResponse":0.2,"rateIncreaseWithSpeed":0,"maxDynamicLimitReduction":5,"steeringRate":0.5}}'
+local _factoryPresetsStr = '{"Loose":{"dampingStrength":0.3,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.3,"maxSelfSteerAngle":4,"targetSlip":1,"countersteerResponse":0.3,"rateIncreaseWithSpeed":0.1,"maxDynamicLimitReduction":4.5,"steeringRate":0.5},"Default":{"dampingStrength":0.37,"filterSetting":0.5,"useFilter":true,"selfSteerResponse":0.37,"maxSelfSteerAngle":14,"targetSlip":0.95,"countersteerResponse":0.2,"rateIncreaseWithSpeed":0.1,"maxDynamicLimitReduction":5,"steeringRate":0.5},"Stable":{"dampingStrength":0.75,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.65,"maxSelfSteerAngle":90,"targetSlip":0.93,"countersteerResponse":0.15,"rateIncreaseWithSpeed":0.0,"maxDynamicLimitReduction":6,"steeringRate":0.35},"Drift":{"dampingStrength":0.5,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.35,"maxSelfSteerAngle":90,"targetSlip":1,"countersteerResponse":0.5,"rateIncreaseWithSpeed":0.1,"maxDynamicLimitReduction":4,"steeringRate":0.4},"Author\'s preference":{"dampingStrength":0.4,"filterSetting":0.5,"useFilter":false,"selfSteerResponse":0.35,"maxSelfSteerAngle":90,"targetSlip":0.95,"countersteerResponse":0.2,"rateIncreaseWithSpeed":-0.25,"maxDynamicLimitReduction":5,"steeringRate":0.5}}'
 local factoryPresets     = _json.decode(_factoryPresetsStr)
 
 local savedPresets = ac.storage({presets = "{}"}, "AGA_PRESETS_")
@@ -79,7 +80,7 @@ local tooltips = {
     autoClutch               = "Automatically controls the clutch if the engine would otherwise stall, or when setting off from a standstill.\n\nThis setting doesn't affect gear changes, that part is controlled by the 'Shifting mode' setting.",
     autoShiftingMode         = "Default = AC's own gear shifting, no change.\n\nManual = custom rev-matching and clutch logic (if the car allows it), but manual shifting only.\n\nAutomatic = custom rev-matching and clutch logic (if the car allows it), as well as automatic gear shifting. You can still shift manually to override a gear for a short time though.\n\nThe 'Automatic' mode uses a custom algorithm which also takes the engine's power curve into account for optimal shifting points.\n\nIMPORTANT: Options other than 'Default' only work properly if 'Automatic shifting' is DISABLED in AC's assist settings!",
     autoShiftingCruise       = "Allows the automatic shifting to go between cruise mode and performance mode depending on your throttle input.\n\nUseful if you want to do both performance driving and casual cruising, but you can disable it for racing (especially for rolling starts).",
-    autoShiftingDownBias     = "Higher = more aggressive downshifting when using automatic mode.\n\nFor example at the maximum setting the car will downshift almost immediately when you brake for a turn, however, this might leave you very close to the top of a gear when going back on the throttle again.",
+    autoShiftingDownBias     = "Higher = more aggressive downshifting when using automatic mode.\n\nFor example at the maximum setting the car will downshift almost immediately when you brake for a turn, however, this might leave you very close to the top of a gear when going back on the throttle again.\n\nIn most cases I recommend leaving this at maximum.",
     triggerFeedbackL         = "Vibration feedback on the left trigger when braking.\n\nA lighter vibration means you're approaching the grip limit, and a heavy vibration means you're locking up the wheels.\n\nOnly works with compatible Xbox controllers!",
     triggerFeedbackR         = "Vibration feedback on the right trigger when accelerating.\n\nA lighter vibration means you're approaching the grip limit, and a heavy vibration means you're getting wheelspin.\n\nOnly works with compatible Xbox controllers!",
     triggerFeedbackAlwaysOn  = "Allows trigger vibrations even when TCS or ABS are enabled.",
@@ -99,6 +100,22 @@ local tooltips = {
     _gameDeadzone            = "Controls AC's own 'Steering deadzone' setting.\n\nDeadzone is used to avoid unintended inputs caused by stick-drift.\n\nShould be as low as you can go without causing unintended inputs when not touching the analog stick.",
     _gameRumble              = "Controls AC's own 'Rumble effects' setting."
 }
+
+-- Checking if a new version is available
+
+local newVersionAvailable = false
+-- local newVersionURL       = ""
+
+updater.getLatestVersion(function (versionString, releaseNotes, downloadURL)
+    local currentVersion = updater.versionStringToNumber(updater.getCurrentVersionString())
+    local latestVersion  = updater.versionStringToNumber(versionString)
+
+    if currentVersion ~= 0 and latestVersion ~= 0 and latestVersion > currentVersion and releaseNotes ~= "" and downloadURL ~= "" then
+        newVersionAvailable      = true
+        tooltips["releaseNotes"] = "Release notes for version " .. versionString .. ":\n\n" .. releaseNotes
+        -- newVersionURL            = downloadURL
+    end
+end)
 
 local sectionPadding = 10
 
@@ -669,9 +686,16 @@ function script.windowMain(dt)
     showConfigSlider("maxSelfSteerAngle", "Max angle", "%.1f°", 0.0,  90.0,   1.0, uiData.useFilter)
     showConfigSlider("dampingStrength",   "Damping",   "%.f%%", 0.0, 100.0, 100.0, uiData.useFilter)
 
-    showDummyLine(0.25)
-    ui.alignTextToFramePadding()
-    ui.textWrapped("Tip: Hold SHIFT to fine-tune sliders, or CTRL-click them to edit the values!")
+    showDummyLine(0.5)
+
+    if newVersionAvailable then
+        if showButton("📲 Update available! Click to download!", "releaseNotes", nil, 0, rgbm(1.0, 0.9, 0.0, 1.0)) then
+            os.execute("start https://www.overtake.gg/downloads/advanced-gamepad-assist.62485/")
+        end
+    else
+        ui.alignTextToFramePadding()
+        ui.textWrapped("Tip: Hold SHIFT to fine-tune sliders, or CTRL-click them to edit the values!")
+    end
 
     -- ui.pushFont(ui.Font.Tiny)
     -- showDummyLine(0.5)
